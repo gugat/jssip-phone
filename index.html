@@ -1,0 +1,121 @@
+<html>
+<head>
+<script type="text/javascript" src="js/jssip-devel.js"></script>
+<script type="text/javascript"  src="js/jquery-1.10.2.min.js" ></script>
+
+
+
+</head>
+
+  <body>
+
+    <label>Freeswitch server: </label><input id="freeswitchServer" type="text" value="mserver.com" />
+    <label>Dial Number: </label><input id="dialNumber" type="text" value="87654" />
+    <label>Caller: </label><input id="caller" type="text" value="guga" />
+  
+    </br>
+    <input type="button" onclick="hangup()" value="Hangup"/>
+    <input type="button" onclick="makeCall()" value="Call"/>
+   
+   
+    <!-- WebRTC media containers -->
+    <audio id="local-media" autoplay ></audio>
+    <audio id="remote-media" autoplay ></audio>
+
+
+    
+  </body>
+
+</html>
+
+
+
+<script type="text/javascript">
+
+
+
+var coolPhone;
+var currentSession;
+var selfView =  document.getElementById('local-media');
+var remoteView = document.getElementById('remote-media');
+
+
+
+var preparePhone = function(){
+  var server = document.getElementById("freeswitchServer").value;
+  var configuration = {
+         uri: 'sip:tester@'+ server,
+       //  passwords: '1234',
+         ws_servers: 'wss://'+server+':7443',
+       //  ws_servers: 'ws://192.168.1.227:5066',                 
+      //   display_name: 'gustavo-1001',
+      //   authorization_user: '1001',
+      //   register: null,
+      //   register_expires: null,
+      //   no_answer_timeout: null,
+         register: false,
+         trace_sip: true,
+         stun_servers: "stun:74.125.134.127:19302",
+      //   turn_servers: null,
+      //   use_preloaded_route: null,
+      //   connection_recovery_min_interval: null,
+      //   connection_recovery_max_interval: null,
+      //   hack_via_tcp: null,
+      //   hack_ip_in_contact: null
+  };
+  
+  coolPhone = new JsSIP.UA(configuration);
+  coolPhone.on('newRTCSession', function(e) {
+        console.log("New Webrtc session created!");
+        currentSession = e.data.session;
+  });
+  
+  coolPhone.start();
+
+}
+
+
+var callExtension = function(){
+  var extension = document.getElementById("dialNumber").value;
+  var server = document.getElementById("freeswitchServer").value;
+  
+  // Register callbacks to desired call events
+  var eventHandlers = {
+    'progress':   function(e){ /* Your code here */ },
+    'failed':     function(e){ /* Your code here */ },
+    'started':    function(e){
+      var rtcSession = e.sender;
+
+      // Attach local stream to selfView
+      if (rtcSession.getLocalStreams().length > 0) {
+        selfView.src = window.URL.createObjectURL(rtcSession.getLocalStreams()[0]);
+      }
+
+      // Attach remote stream to remoteView
+      if (rtcSession.getRemoteStreams().length > 0) {
+        remoteView.src = window.URL.createObjectURL(rtcSession.getRemoteStreams()[0]);
+      }
+    },
+    'ended':      function(e){ /* Your code here */ }
+  };
+
+  var options = {
+    'eventHandlers': eventHandlers,
+    'mediaConstraints': {'audio': true, 'video': false}
+  };
+  
+  coolPhone.call('sip:'+extension+'@'+server, options);
+}
+
+
+
+var makeCall = function(){
+  preparePhone();
+  callExtension();
+}
+
+var hangup = function(){
+  currentSession.terminate();  
+}
+
+</script>
